@@ -1,58 +1,46 @@
 pipeline {
-    agent any
-    environment {
-		AWS_ECR = '240317130487.dkr.ecr.ap-northeast-2.amazonaws.com'
-		AWS_IMAGE_NAME= 'datespot'
-		AWS_REGION = 'ap-northeast-2'
-		AWS_CREDENTIALS_ID = 'datespotecr'
-	}
-    stages {
-        stage("init") {
-            steps {
-                script {
-                    gv = load "script.groovy"
-                }
-            }
-        }
-        stage("Checkout") {
-            steps {
-                checkout scm
-            }
-        }
-		stage('build_and_upload_docker') {
+	agent any
+	
+	stages {
+		stage("init") {
 			steps {
 				script {
-					build_data = docker.build(
-					"${AWS_ECR}/${AWS_IMAGE_NAME}:latest",
-					". -f Dockerfile.patch +@ ETC OPTION"
-					)
-					docker.withRegistry("https://${AWS_ECR}", "ecr:${AWS_REGION}:${AWS_CREDENTIALS_ID}") {
-					build_data.push("${env.gitlabBranch}")
-					build_data.push("${env.gitlabBranch}-${env.BUILD_NUMBER}")
-					build_data.push("${env.gitlabBranch}-${env.GIT_COMMIT}")
-					build_data.push("${env.gitlabBranch}-latest")
-					}
+					gv = load "script.groovy"
 				}
 			}
 		}
-  
-        stage("test") {
-            when {
-                expression {
-                    params.executeTests
-                }
-            }
+		stage("Checkout") {
+			steps {
+				checkout scm
+			}
+		}
+        stage('Build Docker Image') {
             steps {
-                script {
-                    gv.testApp()
-                }
+                sh '/usr/local/bin/docker-compose build web'
             }
         }
-        stage("deploy") {
+		stage('Push Docker Image to ECR Repo') {
             steps {
-                // 컨테이너 실행
-                sh "docker-compose up -d"
+                sh 'aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com"'
+                sh 'docker push "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot/datespot:latest"'
             }
         }
-    }
+		stage("test") {
+			when {
+				expression {
+					params.executeTests
+				}
+			}
+			steps {
+				script {
+					gv.testApp()
+				}
+			}
+		}
+		stage("deploy") {
+			steps {
+				sh "docker-compose up -d"
+			}
+		}
+	}
 }
