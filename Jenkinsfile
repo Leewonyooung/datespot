@@ -14,13 +14,11 @@ pipeline {
 				checkout scm
 			}
 		}
-         stages {
         stage('Build') {
             steps {
                 sh '/snap/bin/docker-compose build web'
             }
         }
-    }
 		stage("test") {
 			when {
 				expression {
