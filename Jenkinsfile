@@ -1,8 +1,6 @@
 pipeline {
 	agent any
-	environment {
-        DOCKER_CLI_PATH = '/usr/local/bin/docker' // Snap이 아닌 Docker Compose 설치 경로 설정
-    }
+	
 	stages {
 		stage("init") {
 			steps {
@@ -16,13 +14,13 @@ pipeline {
 				checkout scm
 			}
 		}
-        stage("Build") {
+         stages {
+        stage('Build') {
             steps {
-                script {
-                    sh "${DOCKER_CLI_PATH}-compose build web"
-                }
+                sh '/snap/bin/docker-compose build web'
             }
         }
+    }
 		stage("test") {
 			when {
 				expression {
