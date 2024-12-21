@@ -1,4 +1,3 @@
-// version test
 pipeline {
     agent any
 
@@ -21,9 +20,10 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Build Docker Image') {
+        stage("Build Docker Image") {
             steps {
                 sh '''
+                    echo "Building Docker Image with tag: ${DOCKER_IMAGE_TAG}"
                     docker build -t ${ECR_REPO}:${DOCKER_IMAGE_TAG} -f Dockerfile .
                 '''
             }
@@ -31,8 +31,47 @@ pipeline {
         stage('Push Docker Image to ECR Repo') {
             steps {
                 withAWS(credentials: 'datespotecr', region: "${AWS_REGION}") {
-                    sh 'aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin "${ECR_REPO}"'
-                    sh 'docker push "${ECR_REPO}:${DOCKER_IMAGE_TAG}"'
+                    sh '''
+                        # Login to ECR
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin "${ECR_REPO}"
+                        
+                        # Push new Docker image
+                        echo "Pushing Docker Image with tag: ${DOCKER_IMAGE_TAG}"
+                        docker push "${ECR_REPO}:${DOCKER_IMAGE_TAG}"
+                        
+                        # Update the 'latest' tag
+                        echo "Tagging and pushing 'latest' tag"
+                        docker tag "${ECR_REPO}:${DOCKER_IMAGE_TAG}" "${ECR_REPO}:latest"
+                        docker push "${ECR_REPO}:latest"
+                    '''
+                }
+            }
+        }
+        stage("Clean Old Images") {
+            steps {
+                withAWS(credentials: 'datespotecr', region: "${AWS_REGION}") {
+                    script {
+                        // Clean up old images (optional)
+                        def imagesToDelete = sh(
+                            script: '''
+                            aws ecr describe-images \
+                                --repository-name datespot \
+                                --query 'imageDetails[?contains(imageTags, `latest`) == `false`].imageDigest' \
+                                --output text
+                            ''',
+                            returnStdout: true
+                        ).trim().split('\n')
+                        
+                        if (imagesToDelete.size() > 5) {  // Keep only the latest 5 versions
+                            echo "Deleting old images: ${imagesToDelete.join(', ')}"
+                            sh """
+                            aws ecr batch-delete-image \
+                                --repository-name datespot \
+                                --region ${AWS_REGION} \
+                                --image-ids $(for digest in ${imagesToDelete[0..-6].join(' ')}; do echo imageDigest=$digest; done)
+                            """
+                            }
+                    }
                 }
             }
         }
@@ -51,6 +90,7 @@ pipeline {
         stage("Deploy") {
             steps {
                 sh '''
+                    echo "Deploying Docker Image with tag: ${DOCKER_IMAGE_TAG}"
                     DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} docker-compose up -d
                 '''
             }
