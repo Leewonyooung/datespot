@@ -37,7 +37,7 @@ pipeline {
 					'''
 					
 					// ECR에 Docker 이미지 푸시
-					docker.withRegistry("https://240317130487.dkr.ecr.ap-northeast-2.amazonaws.com", "pushecr") {
+					docker.withRegistry("https://240317130487.dkr.ecr.ap-northeast-2.amazonaws.com", "ecr:ap-northeast-2:pushecr") {
 						sh '''
 							docker tag datespot-pipeline-web:latest 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest
 							docker push 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest
