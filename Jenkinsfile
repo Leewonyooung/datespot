@@ -1,6 +1,11 @@
 pipeline {
     agent any
-    
+    environment {
+		AWS_ECR = '240317130487.dkr.ecr.ap-northeast-2.amazonaws.com'
+		AWS_IMAGE_NAME= 'datespot'
+		AWS_REGION = 'ap-northeast-2'
+		AWS_CREDENTIALS_ID = 'datespotecr'
+	}
     stages {
         stage("init") {
             steps {
@@ -14,38 +19,23 @@ pipeline {
                 checkout scm
             }
         }
-        // stage('Build') {
-        //     steps {
-        //         // Docker Compose를 사용해 이미지 빌드
-        //         sh '/usr/local/bin/docker-compose build web'
-                
-        //         // AWS ECR에 Docker 이미지 푸시
-        //         script {
-        //             docker.withRegistry("https://240317130487.dkr.ecr.ap-northeast-2.amazonaws.com", "ecr:ap-northeast-2:Jenkinsdatespot-pushecr") {
-        //                 sh "docker tag web:latest 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:tag"
-        //                 sh "docker push 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:tag"
-        //             }
-        //         }
-        //     }
-        // }
-		stage('Build and Push to ECR') {
+		stage('build_and_upload_docker') {
 			steps {
 				script {
-					// Docker 이미지 빌드
-					sh '''
-						docker build -t datespot-pipeline-web:latest .
-					'''
-					
-					// ECR에 Docker 이미지 푸시
-					docker.withRegistry("https://240317130487.dkr.ecr.ap-northeast-2.amazonaws.com", "datespot-pushecr") {
-						sh '''
-							docker tag datespot-pipeline-web:latest 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest
-							docker push 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest
-						'''
+					build_data = docker.build(
+					"${AWS_ECR}/${AWS_IMAGE_NAME}:latest",
+					". -f Dockerfile.patch +@ ETC OPTION"
+					)
+					docker.withRegistry("https://${AWS_ECR}", "ecr:${AWS_REGION}:${AWS_CREDENTIALS_ID}") {
+					build_data.push("${env.gitlabBranch}")
+					build_data.push("${env.gitlabBranch}-${env.BUILD_NUMBER}")
+					build_data.push("${env.gitlabBranch}-${env.GIT_COMMIT}")
+					build_data.push("${env.gitlabBranch}-latest")
 					}
 				}
 			}
 		}
+  
         stage("test") {
             when {
                 expression {
