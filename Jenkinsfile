@@ -2,12 +2,13 @@ pipeline {
     agent any
 
     environment {
+        DOCKER_IMAGE_TAG = "datespot-${BUILD_NUMBER}"  // 고유한 Docker 이미지 태그
         ECR_REPO = "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot"
-        DOCKER_IMAGE_TAG = "datespot-${BUILD_NUMBER}"
+        AWS_REGION = "ap-northeast-2"
     }
 
     stages {
-        stage("init") {
+        stage("Init") {
             steps {
                 script {
                     gv = load "script.groovy"
@@ -19,26 +20,35 @@ pipeline {
                 checkout scm
             }
         }
-       stage('Build and Tag Image') {
+        stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker build -t ${ECR_REPO}:${DOCKER_IMAGE_TAG} .
+                    echo "Building Docker Image with tag: ${DOCKER_IMAGE_TAG}"
+                    docker build -t ${ECR_REPO}:${DOCKER_IMAGE_TAG} -f Dockerfile .
+                    echo "Tagging image as latest"
                     docker tag ${ECR_REPO}:${DOCKER_IMAGE_TAG} ${ECR_REPO}:latest
                 '''
             }
         }
-         stage('Push to ECR') {
+        stage('Push Docker Image to ECR Repo') {
             steps {
-                withAWS(credentials: 'datespotecr', region: 'ap-northeast-2') {
+                withAWS(credentials: 'datespotecr', region: "${AWS_REGION}") {
                     sh '''
-                        aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ECR_REPO}
-                        docker push ${ECR_REPO}:${DOCKER_IMAGE_TAG}
-                        docker push ${ECR_REPO}:latest
+                        # ECR 로그인
+                        aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin "${ECR_REPO}"
+                        
+                        # 고유한 태그로 이미지 푸시
+                        echo "Pushing Docker Image with tag: ${DOCKER_IMAGE_TAG}"
+                        docker push "${ECR_REPO}:${DOCKER_IMAGE_TAG}"
+                        
+                        # 'latest' 태그로 이미지 푸시
+                        echo "Pushing Docker Image with tag: latest"
+                        docker push "${ECR_REPO}:latest"
                     '''
                 }
             }
         }
-        stage("test") {
+        stage("Test") {
             when {
                 expression {
                     params.executeTests
@@ -50,9 +60,12 @@ pipeline {
                 }
             }
         }
-        stage("deploy") {
+        stage("Deploy") {
             steps {
-                sh "docker-compose up -d"
+                sh '''
+                    echo "Deploying Docker Image with tag: ${DOCKER_IMAGE_TAG}"
+                    DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} docker-compose up -d
+                '''
             }
         }
     }
