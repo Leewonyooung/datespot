@@ -16,7 +16,7 @@ pipeline {
 		}
         stage('Build') {
             steps {
-                sh '/snap/bin/docker-compose build web'
+                sh '/usr/local/bin/docker-compose build web'
             }
         }
 		stage("test") {
