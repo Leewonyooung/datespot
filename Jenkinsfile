@@ -17,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
-                    docker build -t 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot/datespot:latest -f Dockerfile .
+                    docker build -t 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest -f Dockerfile .
                 '''
             }
         }
@@ -25,7 +25,7 @@ pipeline {
             steps {
                 withAWS(credentials: 'datespotecr', region: 'ap-northeast-2') {
                     sh 'aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com"'
-                    sh 'docker push "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot/datespot:latest"'
+                    sh 'docker push "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest"'
                 }
             }
         }
