@@ -17,6 +17,7 @@ from fastapi import FastAPI
 # from auth import router as auth_router
 from fastapi.middleware.cors import CORSMiddleware
 import hosts
+from pydantic import BaseModel
 app = FastAPI()
 
 # app.include_router(auth_router, prefix="/auth", tags=["auth"])
@@ -37,10 +38,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class HealthCheckResponse(BaseModel):
+    status: str
+    message: str
+    uptime: str
 
-@app.post("/upload")
-async def test():
-    redis_client = await hosts.get_redis_connection()
+@app.get("/health", response_model=HealthCheckResponse)
+async def health_check():
+    """
+    Health check endpoint
+    """
+    return {
+        "status": "healthy",
+        "message": "The server is running fine!",
+        "uptime": "100%"  # Example additional info
+    }
         
 
 if __name__ == "__main__":
