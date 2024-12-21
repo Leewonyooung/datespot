@@ -20,7 +20,7 @@ pipeline {
                 checkout scm
             }
         }
-        stage("Build Docker Image") {
+        stage('Build Docker Image') {
             steps {
                 sh '''
                     echo "Building Docker Image with tag: ${DOCKER_IMAGE_TAG}"
@@ -51,23 +51,23 @@ pipeline {
             steps {
                 withAWS(credentials: 'datespotecr', region: "${AWS_REGION}") {
                     script {
-                        // Clean up old images (optional)
+                        // Clean up old images
                         def imagesToDelete = sh(
-                            script: '''
-                            aws ecr describe-images \
-                                --repository-name datespot \
-                                --query 'imageDetails[?contains(imageTags, `latest`) == `false`].imageDigest' \
-                                --output text
-                            ''',
+                            script: """
+                                aws ecr describe-images \\
+                                    --repository-name datespot \\
+                                    --query 'imageDetails[?contains(imageTags, `latest`) == `false`].imageDigest' \\
+                                    --output text
+                            """,
                             returnStdout: true
                         ).trim().split('\n')
                         
                         if (imagesToDelete.size() > 5) {  // Keep only the latest 5 versions
                             echo "Deleting old images: ${imagesToDelete.join(', ')}"
                             sh """
-                            aws ecr batch-delete-image \
-                                --repository-name datespot \
-                                --region ${AWS_REGION} \
+                            aws ecr batch-delete-image \\
+                                --repository-name datespot \\
+                                --region ${AWS_REGION} \\
                                 --image-ids $(for digest in ${imagesToDelete[0..-6].join(' ')}; do echo imageDigest=$digest; done)
                             """
                             }
