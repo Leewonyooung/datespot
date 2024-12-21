@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    environment {
+        ECR_REPO = "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot"
+        DOCKER_IMAGE_TAG = "datespot-${BUILD_NUMBER}"
+    }
+
     stages {
         stage("init") {
             steps {
@@ -14,18 +19,22 @@ pipeline {
                 checkout scm
             }
         }
-        stage('Build Docker Image') {
+       stage('Build and Tag Image') {
             steps {
                 sh '''
-                    docker build -t 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest -f Dockerfile .
+                    docker build -t ${ECR_REPO}:${DOCKER_IMAGE_TAG} .
+                    docker tag ${ECR_REPO}:${DOCKER_IMAGE_TAG} ${ECR_REPO}:latest
                 '''
             }
         }
-        stage('Push Docker Image to ECR Repo') {
+         stage('Push to ECR') {
             steps {
                 withAWS(credentials: 'datespotecr', region: 'ap-northeast-2') {
-                    sh 'aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com"'
-                    sh 'docker push "240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest"'
+                    sh '''
+                        aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${ECR_REPO}
+                        docker push ${ECR_REPO}:${DOCKER_IMAGE_TAG}
+                        docker push ${ECR_REPO}:latest
+                    '''
                 }
             }
         }
