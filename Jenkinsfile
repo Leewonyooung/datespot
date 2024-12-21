@@ -1,9 +1,8 @@
 pipeline {
 	agent any
-	parameters {
-		choice(name: 'VERSION', choices: ['1.1.0','1.2.0','1.3.0'], description: '')
-		booleanParam(name: 'executeTests', defaultValue: true, description: '')
-	}
+	environment {
+        DOCKER_CLI_PATH = '/usr/local/bin/docker' // Snap이 아닌 Docker Compose 설치 경로 설정
+    }
 	stages {
 		stage("init") {
 			steps {
@@ -17,11 +16,13 @@ pipeline {
 				checkout scm
 			}
 		}
-		stage("Build") {
-			steps {
-				sh 'docker-compose build web'
-			}
-		}
+        stage("Build") {
+            steps {
+                script {
+                    sh "${DOCKER_CLI_PATH}-compose build web"
+                }
+            }
+        }
 		stage("test") {
 			when {
 				expression {
