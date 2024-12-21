@@ -3,7 +3,8 @@ version: "3"
 services:
   web:
     build: .
-    container_name: 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:lates
+    image: 240317130487.dkr.ecr.ap-northeast-2.amazonaws.com/datespot:latest
+    container_name: fastapi-app
     volumes:
       - .:/code
     ports:
