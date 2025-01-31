@@ -1,48 +1,51 @@
-# import pymysql
-import os, json
-# import boto3
-from redis.asyncio import Redis  # 올바른 클래스 임포트
-# from firebase_admin import credentials, initialize_app
+from fastapi import HTTPException
+import os
+import pymysql 
+from redis.asyncio import Redis
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
-# AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
-# AWS_SECRET_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-# BUCKET_NAME = os.getenv('AWS_S3_BUCKET_NAME')
-# REGION = os.getenv('AWS_REGION')
-# VET_DB = os.getenv('VET_DB')
-# VET_USER = os.getenv('VET_DB_USER')
-# VET_PASSWORD = os.getenv('VET_DB_PASSWORD')
-# VET_TABLE = os.getenv('VET_DB_TABLE')
-# VET_PORT = os.getenv('VET_PORT')
-# REDIS_HOST = os.getenv('REDIS_HOST')
-# REDIS_PORT = os.getenv("REDIS_PORT")
-# REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
-
-
-
-# s3 = boto3.client(
-#     's3',
-#     aws_access_key_id=AWS_ACCESS_KEY,
-#     aws_secret_access_key=AWS_SECRET_KEY,
-#     region_name=REGION
-# )
+# 환경 변수에서 불러오기
+AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY_ID')
+AWS_SECRET_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
+BUCKET_NAME = os.getenv('BUCKET_NAME')
+REGION = os.getenv('AWS_REGION')
+DB = os.getenv('DATESPOT_DB')
+DB_USER = os.getenv('DATESPOT_DB_USER')
+DB_PASSWORD = os.getenv('DATESPOT_DB_PASSWORD')
+DB_TABLE = os.getenv('DATESPOT_DB_TABLE')
+DB_PORT = os.getenv('DATESPOT_PORT')
+REDIS_HOST = os.getenv('REDIS_HOST')
+REDIS_PORT = os.getenv("REDIS_PORT")
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 
 
-# firebase_key_json = os.getenv("VET_FIREBASE_KEY")
-# if not firebase_key_json:
-#     raise ValueError("VET_FIREBASE_KEY environment variable is not set")
+def create_s3_client():
 
-# # JSON 문자열을 Python 딕셔너리로 변환
-# firebase_key = json.loads(firebase_key_json)
+    if not AWS_SECRET_KEY or not AWS_SECRET_KEY:
+        raise HTTPException(status_code=400, detail="AWS credentials are not set in environment variables.")
 
-# # Firebase 초기화
-# cred = credentials.Certificate(firebase_key)
-# print(cred)
-# initialize_app(cred)
+    try:
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=AWS_ACCESS_KEY,
+            aws_secret_access_key=AWS_SECRET_KEY,
+            region_name=REGION
+        )
+        return s3
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        raise HTTPException(status_code=401, detail=f"AWS credentials error: {str(e)}")
+    
 
-
+# Redis client 초기화
 redis_client = None
 
+
+# Redis 연결 함수
 async def get_redis_connection():
+    """
+    Redis 연결 초기화 및 기존 연결 반환
+    """
     global redis_client
     if not redis_client:
         try:
@@ -50,27 +53,36 @@ async def get_redis_connection():
             # Redis 클라이언트 생성
             redis_client = Redis(
                 host='datespot-redis.a4ifxd.ng.0001.apn2.cache.amazonaws.com',
-                port=6379,
-                # password=REDIS_PASSWORD,
+                port=REDIS_PORT,
                 decode_responses=True  # 문자열 디코딩 활성화
             )
             # 연결 테스트
             await redis_client.ping()
-            print("Redis connection established.")
+            print("Redis 연결 성공")
         except Exception as e:
-            print(f"Failed to connect to Redis: {e}")
+            print(f"Redis 연결 실패: {e}")
             redis_client = None
             raise e
     return redis_client
 
-
-# def connect():
-#     conn = pymysql.connect(
-#         host=VET_DB,
-#         user=VET_USER,
-#         password=VET_PASSWORD,
-#         charset='utf8',
-#         db=VET_TABLE,
-#         port=int(VET_PORT)
-#     )
-#     return conn
+def connect():
+    """
+    MySQL 데이터베이스 연결 및 반환
+    """
+    print(DB_USER)
+    print(DB_PORT)
+    try:
+        conn = pymysql.connect(
+            host="3.36.90.21",
+            user=DB_USER,
+            password=DB_PASSWORD,
+            charset='utf8',
+            db=DB_TABLE,
+            port=3306
+            # int(DB_PORT)
+        )
+        print("MySQL 연결 성공")
+        return conn
+    except Exception as e:
+        print(f"MySQL 연결 실패: {e}")
+        raise e
