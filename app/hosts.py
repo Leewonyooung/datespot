@@ -69,6 +69,7 @@ def connect():
     """
     MySQL 데이터베이스 연결 및 반환
     """
+    print(f"환경변수 : {os.getenv('DATESPOT_DB_PASSWORD')}")
     print(DB_USER)
     print(DB_PORT)
     try:
