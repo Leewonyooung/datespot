@@ -73,13 +73,12 @@ def connect():
     print(DB_PORT)
     try:
         conn = pymysql.connect(
-            host="3.36.90.21",
+            host="svc.sel4.cloudtype.app",
             user=DB_USER,
             password=DB_PASSWORD,
             charset='utf8',
             db=DB_TABLE,
-            port=3306
-            # int(DB_PORT)
+            port=32176
         )
         print("MySQL 연결 성공")
         return conn
